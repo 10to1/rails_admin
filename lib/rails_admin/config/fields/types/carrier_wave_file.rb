@@ -8,7 +8,7 @@ if defined?(::CarrierWave)
 
       register_instance_option(:formatted_value) do
         unless value.blank?
-          if value.tiny
+          if value.respond_to?(:tiny)
             "<a href='#{value}'}><img src='#{value.tiny.url}' /></a><a href='#{value}'}>#{value.to_s.split('/').last}</a>".html_safe
           else
             "<a href='#{value}'}>#{value.to_s.split("/").last}</a>".html_safe
