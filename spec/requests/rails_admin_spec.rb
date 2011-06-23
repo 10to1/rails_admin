@@ -35,8 +35,8 @@ describe "RailsAdmin" do
 
     it "should load javascript files" do
       scripts = %w[ /javascripts/rails_admin/application.js
-                http://ajax.googleapis.com/ajax/libs/jquery/1.5.1/jquery.min.js
-                http://ajax.googleapis.com/ajax/libs/jqueryui/1.8.10/jquery-ui.min.js ]
+                //ajax.googleapis.com/ajax/libs/jquery/1.5.1/jquery.min.js
+                //ajax.googleapis.com/ajax/libs/jqueryui/1.8.13/jquery-ui.min.js ]
 
       scripts.each do |script|
         should have_selector(%Q{script[src^="#{script}"]})
@@ -46,8 +46,8 @@ describe "RailsAdmin" do
 
   describe "polymorphic associations" do
     before :each do
-      @team = Factory.create :team
-      @comment = Factory.create :comment, :commentable => @team
+      @team = FactoryGirl.create :team
+      @comment = FactoryGirl.create :comment, :commentable => @team
     end
 
     it "should work like belongs to associations in the list view" do
@@ -62,6 +62,12 @@ describe "RailsAdmin" do
       response.should have_tag("legend", :content => "Commentable")
       response.should have_tag("select#comment_commentable_type")
       response.should have_tag("select#comment_commentable_id")
+    end
+
+    it "should be hidden in the owning end" do
+      get rails_admin_edit_path(:model_name => "team", :id => @team.id)
+
+      response.should_not have_tag("legend", :content => "Comments")
     end
   end
 

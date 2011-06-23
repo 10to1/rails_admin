@@ -15,8 +15,6 @@ module RailsAdmin
 
         def self.inherited(klass)
             klass.instance_variable_set("@css_class", klass.name.to_s.demodulize.camelcase(:lower))
-            klass.instance_variable_set("@searchable", false)
-            klass.instance_variable_set("@sortable", true)
             klass.instance_variable_set("@view_helper", :text_field)
         end
 
@@ -40,9 +38,6 @@ module RailsAdmin
           self.class.instance_variable_get("@css_class")
         end
 
-        # NOTE: "css_class_name" is deprecated, use "css_class" instead.
-        # FIXME: remove this after giving people an appropriate time
-        # to change their code.
         def column_css_class(*args, &block)
           if !args[0].nil? || block
             @css_class = args[0].nil? ? block : args[0]
@@ -51,17 +46,50 @@ module RailsAdmin
           end
         end
 
-        # NOTE: "css_class_name" is deprecated, use "css_class" instead.
-        # FIXME: remove this after giving people an appropriate time
-        # to change their code.
-        def column_css_class=(value)
-          @css_class = value
-        end
-
         register_instance_option(:column_width) do
           self.class.instance_variable_get("@column_width")
         end
+        
+        register_instance_option(:sortable) do
+          true
+        end
+        
+        register_instance_option(:searchable) do
+          true
+        end
+        
+        register_instance_option(:queryable?) do
+          !!searchable
+        end
 
+        register_instance_option(:filterable?) do
+          !!searchable
+        end
+        
+        # serials and dates are reversed in list, which is more natural (last modified items first).
+        register_instance_option(:sort_reverse?) do
+          false
+        end
+
+        # list of columns I should search for that field [{ :column => 'table_name.column', :type => field.type }, {..}]
+        register_instance_option(:searchable_columns) do
+          @searchable_columns ||= case self.searchable 
+          when true
+            [{ :column => "#{self.abstract_model.model.table_name}.#{self.name}", :type => self.type }]
+          when false
+            []
+          when :all # valid only for associations
+            self.associated_model_config.list.fields.map { |f| { :column => "#{self.associated_model_config.abstract_model.model.table_name}.#{f.name}", :type => f.type } }
+          else
+            [self.searchable].flatten.map do |f| 
+              field_name = f.is_a?(Hash) ? f.values.first : f
+              abstract_model = f.is_a?(Hash) ? AbstractModel.new(f.keys.first) : (self.association? ? self.associated_model_config.abstract_model : self.abstract_model)
+              property = abstract_model.properties.find{ |p| p[:name] == field_name }
+              { :column => "#{abstract_model.model.table_name}.#{property[:name]}", :type => property[:type] }
+            end
+          end
+        end
+        
         register_instance_option(:formatted_value) do
           unless (output = value).nil?
             output
@@ -78,9 +106,8 @@ module RailsAdmin
         register_instance_option(:html_attributes) do
           {
             :class => "#{css_class} #{has_errors? ? "errorField" : nil}",
-            :value => value,
-            :style => "width:#{column_width}px",
-          }
+            :value => value
+          }.merge(column_width.present? ? { :style => "width:#{column_width}px" } : {})
         end
 
         # Accessor for field's label.
@@ -117,21 +144,13 @@ module RailsAdmin
           !properties[:nullable?] || required_by_validator
         end
 
-        register_instance_option(:searchable?) do
-          self.class.instance_variable_get("@searchable")
-        end
-
         # Accessor for whether this is a serial field (aka. primary key, identifier).
         #
         # @see RailsAdmin::AbstractModel.properties
         register_instance_option(:serial?) do
           properties[:serial?]
         end
-
-        register_instance_option(:sortable?) do
-          self.class.instance_variable_get("@sortable")
-        end
-
+        
         register_instance_option(:view_helper) do
           self.class.instance_variable_get("@view_helper")
         end
@@ -176,10 +195,6 @@ module RailsAdmin
           optional(state)
         end
 
-        def to_param
-          "#{abstract_model.to_param.singularize}_#{name}"
-        end
-
         # Legacy support
         def to_hash
           {
@@ -188,9 +203,7 @@ module RailsAdmin
             :type => type,
             :length => length,
             :nullable? => required?,
-            :searchable? => searchable?,
-            :serial? => serial?,
-            :sortable? => sortable?,
+            :serial? => serial?
           }
         end
 
@@ -201,7 +214,25 @@ module RailsAdmin
 
         # Reader for field's value
         def value
-          bindings[:object].send(name)
+          bindings[:object].safe_send(name)
+        end
+                
+        # Reader for field's name
+        def dom_name
+          @dom_name ||= "#{bindings[:form].object_name}#{(index = bindings[:form].options[:index]) && "[#{index}]"}[#{method_name}]"
+        end
+        
+        # Reader for field's id
+        def dom_id
+          @dom_id ||= [
+            bindings[:form].object_name, 
+            bindings[:form].options[:index], 
+            method_name
+          ].reject(&:blank?).join('_')
+        end
+
+        def method_name
+          name.to_s
         end
       end
     end

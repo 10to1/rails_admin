@@ -24,24 +24,38 @@ module RailsAdmin
               nil
             end
           end
-
+          
+          register_instance_option(:sortable) do
+            associated_model_config.abstract_model.properties.map{ |p| p[:name] }.include?(associated_model_config.object_label_method) ? associated_model_config.object_label_method : true
+          end
+          
+          register_instance_option(:searchable) do
+            associated_model_config.abstract_model.properties.map{ |p| p[:name] }.include?(associated_model_config.object_label_method) ? [associated_model_config.object_label_method, {self.abstract_model.model.name => self.name}] : true
+          end
+          
           register_instance_option(:partial) do
-            :form_belongs_to
+            :form_filtering_select
           end
 
-          def associated_collection
-            associated_model_config.abstract_model.all.map do |object|
-              [associated_model_config.with(:object => object).object_label, object.id]
-            end
+          register_instance_option(:render) do
+            bindings[:view].render :partial => partial.to_s, :locals => {:field => self, :form => bindings[:form] }
           end
 
           def associated_model_config
             @associated_model_config ||= RailsAdmin.config(association[:parent_model])
           end
 
+          def selected_id
+            bindings[:object].send(child_key)
+          end
+
           # Reader for field's value
           def value
             bindings[:object].send(name)
+          end
+          
+          def method_name
+            name.to_s
           end
         end
       end

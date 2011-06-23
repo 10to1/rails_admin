@@ -41,13 +41,13 @@ module RailsAdmin
                   end
                 end
               end
-              ::DateTime.parse(date_string, format)
+              ::Time.zone.parse(date_string, format)
             end
 
           end
 
           def formatted_date_value
-            value.nil? ? "" : I18n.l(value, :format => localized_date_format)
+            value.nil? ? "" : I18n.l(value, :format => localized_date_format).strip
           end
 
           def formatted_time_value
@@ -128,6 +128,10 @@ module RailsAdmin
 
           def parse_input(params)
             params[name] = self.class.normalize(params[name], "#{localized_date_format} #{localized_time_format}") if params[name]
+          end
+          
+          register_instance_option(:sort_reverse?) do
+            true
           end
 
           register_instance_option(:date_format) do
