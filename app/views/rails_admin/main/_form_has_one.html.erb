@@ -10,7 +10,7 @@
 %>
               <div class="field <%= field.to_param %>">
                 <label for="associations[<%= association_name%>]"><%= field.label %></label>
-                <%= select("associations", association_name, collection, field.html_attributes) %>
+                <%= select("associations", association_name, collection, field.html_attributes.merge({:selected => selected.id})) %>
                 <% if field.has_errors? %>
                 <span class="errorMessage"><%= "#{field.label } #{field.errors.first}" %></span>
                 <% end %>
