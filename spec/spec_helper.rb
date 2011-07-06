@@ -16,7 +16,8 @@ require File.expand_path('../dummy_app/config/environment', __FILE__)
 require 'rails/test_help'
 require 'generator_spec/test_case'
 require 'generators/rails_admin/install_migrations_generator'
-require File.dirname(__FILE__) + '/../lib/tasks/tasks'
+require File.dirname(__FILE__) + '/../lib/rails_admin/tasks/install'
+require File.dirname(__FILE__) + '/../lib/rails_admin/tasks/uninstall'
 require 'generators/rails_admin/uninstall_migrations_generator'
 require 'generators/rails_admin/rails_admin_generator'
 require 'rspec/rails'
@@ -40,23 +41,12 @@ migrate_database
 # Load support files
 Dir["#{File.dirname(__FILE__)}/support/**/*.rb"].each{|f| require f}
 
-Webrat.configure do |config|
-  config.mode = :rails
-end
-
 RSpec.configure do |config|
-  # Remove this line if you don't want RSpec's should and should_not
-  # methods or matchers
   require 'rspec/expectations'
 
   config.include RSpec::Matchers
-  config.include Webrat::Matchers
-  config.include Webrat::HaveTagMatcher
   config.include DatabaseHelpers
   config.include GeneratorHelpers
-
-  # == Mock Framework
-  config.mock_with :rr
 
   config.include Warden::Test::Helpers
 

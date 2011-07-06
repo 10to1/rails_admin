@@ -23,6 +23,16 @@ module RailsAdmin
     @@included_models = []
     mattr_accessor :included_models
 
+    @@default_search_operator = 'default'
+    def self.default_search_operator=(operator)
+      if %w{ default like starts_with ends_with is = }.include? operator
+        @@default_search_operator = operator
+      else
+        raise ArgumentError, "Search operator '#{operator}' not supported"
+      end
+    end
+    mattr_reader :default_search_operator
+
     # Configuration option to specify which method names will be searched for
     # to be used as a label for object records. This defaults to [:name, :title]
     mattr_accessor :label_methods
@@ -96,12 +106,12 @@ module RailsAdmin
       end
     end
 
-    # Get all models that are configured as visible sorted by their label.
+    # Get all models that are configured as visible sorted by their weight and label.
     #
     # @see RailsAdmin::Config::Hideable
     def self.visible_models
       RailsAdmin::Config.models.select {|m| m.visible? }.sort do |a, b|
-        a.label.downcase <=> b.label.downcase
+        (weight_order = a.weight <=> b.weight) == 0 ? a.label.downcase <=> b.label.downcase : weight_order
       end
     end
   end

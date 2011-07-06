@@ -10,6 +10,10 @@ module RailsAdmin
 
           @column_width = 250
 
+          def initialize(parent, name, properties, association)
+            super(parent, name, properties, association)
+          end
+
           register_instance_option(:partial) do
             :form_polymorphic_association
           end
@@ -21,11 +25,19 @@ module RailsAdmin
             associated_model_config.length > 0
           end
 
+          register_instance_option(:sortable) do
+            false
+          end
+
+          register_instance_option(:searchable) do
+            false
+          end
+
           def associated_collection(type)
             return [] if type.nil?
             config = RailsAdmin.config(type)
             config.abstract_model.all.map do |object|
-              [config.with(:object => object).object_label, object.id]
+              [object.send(config.object_label_method), object.id]
             end
           end
 

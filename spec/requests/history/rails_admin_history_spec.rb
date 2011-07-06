@@ -13,6 +13,13 @@ describe "RailsAdmin History" do
     end
   end
 
+  describe "when range starts in December" do
+    it "does not produce SQL with empty IN () range" do
+      RailsAdmin::History.should_receive(:find_by_sql).with(["select count(*) as record_count, year, month from rails_admin_histories where month IN (?) and year = ? group by year, month", [1, 2, 3, 4], 2011]).and_return([])
+      RailsAdmin::History.get_history_for_dates(12, 4, 2010, 2011)
+    end
+  end
+
   describe "history blank results single year" do
     before(:each) do
       @months = RailsAdmin::History.add_blank_results([RailsAdmin::BlankHistory.new(7, 2010), RailsAdmin::BlankHistory.new(9, 2011)], 5, 2010)
@@ -43,8 +50,8 @@ describe "RailsAdmin History" do
 
   describe "history ajax update" do
     it "shouldn't use the application layout" do
-      post rails_admin_history_list_path, :ref => 0, :section => 4
-      response.should_not have_tag "h1#app_layout_warning"
+      visit rails_admin_history_list_path(:ref => 0, :section => 4)
+      page.should have_no_selector "h1#app_layout_warning"
     end
   end
 
@@ -52,7 +59,7 @@ describe "RailsAdmin History" do
     before :all do
       @default_items_per_page = RailsAdmin::Config::Sections::List.default_items_per_page
       @model = RailsAdmin::AbstractModel.new("Player")
-      player = Factory.create :player
+      player = FactoryGirl.create :player
       30.times do |i|
         player.number = i
         RailsAdmin::AbstractHistory.create_history_item "change #{i}", player, @model, nil
@@ -74,11 +81,15 @@ describe "RailsAdmin History" do
 
     context "GET admin/history/@model" do
       before :each do
-        get rails_admin_history_model_path(@model)
+        visit rails_admin_history_model_path(@model)
       end
 
-      it "should render successfully" do
-        response.should be_successful
+      # https://github.com/sferik/rails_admin/issues/362
+      # test that no link uses the "wildcard route" with the history
+      # controller and for_model method
+      it "should not use the 'wildcard route'" do
+        page.should have_selector("a[href*='all=true']") # make sure we're fully testing pagination
+        page.should have_no_selector("a[href^='/rails_admin/history/for_model']")
       end
 
       context "with a lot of histories" do
@@ -90,13 +101,8 @@ describe "RailsAdmin History" do
           end
         end
 
-        it "should render successfully" do
-          response.should be_successful
-        end
-
         it "should render a XHR request successfully" do
           xhr :get, rails_admin_history_model_path(@model, :page => 2)
-          response.should be_successful
         end
       end
     end

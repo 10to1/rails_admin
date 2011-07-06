@@ -15,7 +15,7 @@ module RailsAdmin
 
       properties.each do |property|
         property_name = property[:name].to_param
-        if old_object.send(property_name) != object.send(property_name)
+        if old_object.safe_send(property_name) != object.safe_send(property_name)
           changed_property_list << property_name
         end
       end
@@ -113,7 +113,7 @@ module RailsAdmin
         RailsAdmin::History.get_history_for_dates(from[:month].to_i, to[:month].to_i, from[:year].to_i, to[:year].to_i)
       rescue ActiveRecord::StatementInvalid => e
         if e.message =~ /rails_admin_histories/ # seems to be the only common text in the db-specific error messages
-          message = "Please run the generator \"rails generate rails_admin:install_admin\" then migrate your database.  #{e.message}"
+          message = "Please run the generator \"rails generate rails_admin:install_migrations\" then migrate your database.  #{e.message}"
         else
           message = e.message
         end

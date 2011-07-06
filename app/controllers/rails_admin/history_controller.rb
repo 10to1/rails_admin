@@ -15,7 +15,7 @@ module RailsAdmin
     end
 
     def slider
-      if params[:from].nil? or params[:to].nil?
+      if params[:from].blank? or params[:to].blank?
         not_found
       else
         render :json => AbstractHistory.history_summaries(params[:from], params[:to])
@@ -30,7 +30,7 @@ module RailsAdmin
 
       @page_count, @history = AbstractHistory.history_for_model @abstract_model, params[:query], params[:sort], params[:sort_reverse], params[:all], params[:page]
 
-      render "show", :layout => request.xhr? ? false : 'rails_admin/list'
+      render "show", :layout => request.xhr? ? false : 'rails_admin/main'
     end
 
     def for_object
@@ -40,7 +40,7 @@ module RailsAdmin
 
       @history = AbstractHistory.history_for_object @abstract_model, @object, params[:query], params[:sort], params[:sort_reverse]
 
-      render "show", :layout => request.xhr? ? false : 'rails_admin/list'
+      render "show", :layout => request.xhr? ? false : 'rails_admin/main'
     end
 
   end
