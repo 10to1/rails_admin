@@ -252,7 +252,7 @@ you want to get the Team model's visibility, you use
 
 **Create a dropdown menu in navigation**
 
-This will desactivate config.navigation.max_visible_tabs.
+This will deactivate config.navigation.max_visible_tabs.
 
     RailsAdmin.config do |config|
       ..
@@ -316,6 +316,7 @@ Example:
     end
 
 The 'League related' dropdown menu will move to the leftmost position.
+
 
 ### List view ###
 
@@ -471,7 +472,7 @@ Belongs_to associations :
     end
 
 Searchable definitions will be used for searches and filters.
-You can independently desactivate querying (search) or filtering for each field with:
+You can independently deactivate querying (search) or filtering for each field with:
 
     field :team do
       searchable [:name, :color]
@@ -733,6 +734,24 @@ Field groups can be renamed:
     end
 
 This would render "Team information" instead of "Basic info" as the groups label.
+
+**Field groupings - help**
+
+Field groups can have a set of instructions which is displayed under the label:
+
+    RailsAdmin.config do |config|
+      config.model Team do
+        edit do
+          group :default do
+            label "Team information"
+            help "Please fill all informations related to your team..."
+          end
+        end
+      end
+    end
+
+This content is mostly useful when the admin doign the data entry is not familiar with the system or as a way to display inline documentation.
+
 
 **Field groupings - syntax**
 
@@ -1018,6 +1037,81 @@ RailsAdmin will handle ordering in and out of the form.
     end
 
 You'll need to handle ordering in your model with a position column for example.
+
+
+### Configuring fields ###
+
+* exclude_fields field_list
+* exclude_fields_if cond
+* include_fields field_list
+* include_fields_if cond
+* include_all_fields
+* fields field_list,  configuration_block
+
+
+** Fields - exclude some fields **
+
+By default *all* fields found on your model will be added to list/edit/export views,
+with a few exceptions for polymorphic columns and such.
+You can exclude specific fields with exclude_fields & exclude_fields_if:
+
+Example:
+
+    RailsAdmin.config do |config|
+      config.model League do
+        list do
+          exclude_fields_if do
+            type == :datetime
+          end
+
+          exclude_fields :id, :name     
+        end
+      end
+    end
+
+But after you specify your *first* field, this behaviour will be canceled.
+*Only* the specified fields will be added.
+But you can then use include_all_fields to add all default fields:
+
+Example:
+
+    RailsAdmin.config do |config|
+      config.model League do
+        list do
+          field :name do
+            # snipped specific configuration for name attribute
+          end
+          
+          include_all_fields # all other default fields will be added after, conveniently
+          exclude_fields :created_at # but you still can remove fields
+        end
+      end
+    end
+
+** Fields - include some fields **
+
+It is also possible to add fields by group and configure them by batches:
+
+Example:
+
+    RailsAdmin.config do |config|
+      config.model League do
+        list do
+          # all selected fields will be added, but you can't configure them. 
+          # If you need to select them by type, see *fields_of_type*
+          include_fields_if do
+            name =~ /displayed/
+          end
+          
+          include_fields :name, :title                # simply adding fields by their names (order will be maintained)
+          fields :created_at, :updated_at do          # adding and configuring
+            label do
+              "#{label} (timestamp)"
+            end
+          end
+        end
+      end
+    end
 
 ### Mass Assignment Operations ###
 
