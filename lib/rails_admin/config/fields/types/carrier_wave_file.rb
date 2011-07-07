@@ -2,21 +2,19 @@ if defined?(::CarrierWave)
   module RailsAdmin::Config::Fields::Types
     # Field type that supports CarrierWave file uploads
     class CarrierWaveFile < RailsAdmin::Config::Fields::Types::FileUpload
+
+      register_instance_option(:delete_method) do
+        "delete_#{name}" if bindings[:object].respond_to?("delete_#{name}")
+      end
+
+      def value
+        "<a href='#{bindings[:object].send(name).try(:url)}'>#{bindings[:object].send(name).try(:url)}</a>".html_safe
+      end
+
       register_instance_option(:partial) do
         :form_carrier_wave_file
       end
 
-      register_instance_option(:formatted_value) do
-        unless value.blank?
-          if value.respond_to?(:tiny)
-            "<a href='#{value}'}><img src='#{value.tiny.url}' /></a><a href='#{value}'}>#{value.to_s.split('/').last}</a>".html_safe
-          else
-            "<a href='#{value}'}>#{value.to_s.split("/").last}</a>".html_safe
-          end
-        else
-          ""
-        end
-      end
     end
 
     register(:carrier_wave_file, CarrierWaveFile)
