@@ -6,7 +6,7 @@ module RailsAdmin
     layout "rails_admin/main"
 
     before_filter :get_model, :except => [:index]
-    before_filter :get_object, :only => [:edit, :update, :delete, :destroy]
+    before_filter :get_object, :only => [:show, :edit, :update, :delete, :destroy]
     before_filter :get_attributes, :only => [:create, :update]
     before_filter :check_for_cancel, :only => [:create, :update, :destroy, :export, :bulk_destroy]
 
@@ -87,6 +87,9 @@ module RailsAdmin
         end
         @authorization_adapter.authorize(:new, @abstract_model, @object)
       end
+      if object_params = params[@abstract_model.to_param]
+        @object.attributes = @object.attributes.merge(object_params)
+      end
       @page_name = t("admin.actions.create").capitalize + " " + @model_config.label.downcase
       @page_type = @abstract_model.pretty_name.downcase
       respond_to do |format|
@@ -127,11 +130,20 @@ module RailsAdmin
       end
     end
 
+    def show
+      @authorization_adapter.authorize(:show, @abstract_model, @object) if @authorization_adapter
+      @page_name = t("admin.show.page_name", :name => @model_config.label.downcase)
+      @page_type = @abstract_model.pretty_name.downcase
+    end
+
     def edit
       @authorization_adapter.authorize(:edit, @abstract_model, @object) if @authorization_adapter
-
       @page_name = t("admin.actions.update").capitalize + " " + @model_config.label.downcase
       @page_type = @abstract_model.pretty_name.downcase
+      respond_to do |format|
+        format.html
+        format.js   { render :layout => 'rails_admin/plain.html.erb' }
+      end
     end
 
     def update
@@ -172,6 +184,10 @@ module RailsAdmin
 
       @page_name = t("admin.actions.delete").capitalize + " " + @model_config.label.downcase
       @page_type = @abstract_model.pretty_name.downcase
+      respond_to do |format|
+        format.html
+        format.js   { render :layout => 'rails_admin/plain.html.erb' }
+      end
     end
 
     def destroy
@@ -288,6 +304,10 @@ module RailsAdmin
         "#{@abstract_model.model.table_name}.#{params[:sort]}"
       elsif field.sortable == false # use default sort, asked field is not sortable
         "#{@abstract_model.model.table_name}.#{@model_config.list.sort_by.to_s}"
+      elsif field.sortable.is_a?(String) && field.sortable.include?('.') # just provide sortable, don't do anything smart
+        field.sortable
+      elsif field.sortable.is_a?(Hash) # just join sortable hash, don't do anything smart
+        "#{field.sortable.keys.first}.#{field.sortable.values.first}"
       elsif field.association? # use column on target table
         "#{field.associated_model_config.abstract_model.model.table_name}.#{field.sortable}"
       else # use described column in the field conf.
@@ -310,6 +330,9 @@ module RailsAdmin
 
       #  LATER
       #   find a way for complex request (OR/AND)?
+      #   _type should be a dropdown with possible values
+      #   belongs_to should be filtering boxes
+      #   so that we can create custom engines through the DSL (list.filter = [list of columns])
       #   multiple words queries
       #   find a way to force a column nonetheless?
 
@@ -329,14 +352,16 @@ module RailsAdmin
       values = []
       conditions = [""]
 
-
       if query.present?
-        @queryable_fields = @model_config.list.fields.select(&:queryable?).map(&:searchable_columns).flatten
-        @queryable_fields.each do |field_infos|
-          statement, *value = build_statement(field_infos[:column], field_infos[:type], query, RailsAdmin::Config.default_search_operator)
-          if statement && value
-            query_statements << statement
-            values << value
+        queryable_fields = @model_config.list.fields.select(&:queryable?)
+        queryable_fields.each do |field|
+          searchable_columns = field.searchable_columns.flatten
+          searchable_columns.each do |field_infos|
+            statement, *value = build_statement(field_infos[:column], field_infos[:type], query, field.search_operator)
+            if statement && value
+              query_statements << statement
+              values << value
+            end
           end
         end
       end
@@ -347,14 +372,14 @@ module RailsAdmin
       end
 
       if filters.present?
-        @filterable_fields = @model_config.list.fields.select(&:filterable?).inject({}){ |memo, field| memo[field.name] = field.searchable_columns; memo }
+        @filterable_fields = @model_config.list.fields.select(&:filterable?).inject({}){ |memo, field| memo[field.name.to_sym] = field.searchable_columns; memo }
         filters.each_pair do |field_name, filters_dump|
           filters_dump.each do |filter_index, filter_dump|
             field_statements = []
-            @filterable_fields[field_name.intern].each do |field_infos|
+            @filterable_fields[field_name.to_sym].each do |field_infos|
               unless filter_dump[:disabled]
                 statement, *value = build_statement(field_infos[:column], field_infos[:type], filter_dump[:value], (filter_dump[:operator] || 'default'))
-                unless statement.nil? || value.nil?
+                if statement
                   field_statements << statement
                   values << value
                 end
@@ -375,11 +400,34 @@ module RailsAdmin
     end
 
     def build_statement(column, type, value, operator)
+      
+      # this operator/value has been discarded (but kept in the dom to override the one stored in the various links of the page)
+      return if operator == '_discard' || value == '_discard'
+      
+      # filtering data with unary operator, not type dependent
+      if operator == '_blank' || value == '_blank'
+        return ["(#{column} IS NULL OR #{column} = '')"]
+      elsif operator == '_present' || value == '_present'
+        return ["(#{column} IS NOT NULL AND #{column} != '')"]
+      elsif operator == '_null' || value == '_null'
+        return ["(#{column} IS NULL)"]
+      elsif operator == '_not_null' || value == '_not_null'
+        return ["(#{column} IS NOT NULL)"]
+      elsif operator == '_empty' || value == '_empty'
+        return ["(#{column} = '')"]
+      elsif operator == '_not_empty' || value == '_not_empty'
+        return ["(#{column} != '')"]
+      end
+      
+      # starting from here, we need a value. If there is none, we shouldn't filter anything (empty filter)
+      return unless value.presence
+      
+      # now we go type specific
       case type
       when :boolean
-         ["(#{column} #{operator == 'default' ? '=' : operator} ?)", ['true', 't', '1'].include?(value)] if ['true', 'false', 't', 'f', '1', '0'].include?(value)
+         ["(#{column} = ?)", ['true', 't', '1'].include?(value)] if ['true', 'false', 't', 'f', '1', '0'].include?(value)
       when :integer, :belongs_to_association
-         ["(#{column} #{operator == 'default' ? '=' : operator} ?)", value.to_i] if value.to_i.to_s == value
+         ["(#{column} = ?)", value.to_i] if value.to_i.to_s == value
       when :string, :text
         value = case operator
         when 'default', 'like'
@@ -410,7 +458,7 @@ module RailsAdmin
         end
         ["(#{column} BETWEEN ? AND ?)", *values]
       when :enum
-        ["(#{column} #{@like_operator} ?)", value]
+        ["(#{column} = ?)", value]
       end
     end
 
@@ -492,7 +540,7 @@ module RailsAdmin
 
     def check_for_injections(schema)
       check_injections_for(@model_config, (schema[:only] || []) + (schema[:methods] || []))
-      allowed_associations = @model_config.export.visible_fields.select{ |f| f.association? && !f.association[:options][:polymorphic] }.map(&:association)
+      allowed_associations = @model_config.export.visible_fields.select{ |f| f.association? && !f.association[:polymorphic] }.map(&:association)
       (schema[:include] || []).each do |association_name, schema|
         association = allowed_associations.find { |aa| aa[:name] == association_name }
         raise("Security Exception: #{association[:name]} association not available for #{@model_config.abstract_model.pretty_name}") unless association
@@ -502,9 +550,9 @@ module RailsAdmin
     end
 
     def check_injections_for(model_config, methods_name)
-      available_fields = model_config.export.visible_fields.select{ |f| !f.association? || f.association[:options][:polymorphic] }.map do |field|
-        if field.association? && field.association[:options][:polymorphic]
-          [field.name, model_config.abstract_model.properties.find {|p| field.association[:options][:foreign_type] == p[:name].to_s }[:name]]
+      available_fields = model_config.export.visible_fields.select{ |f| !f.association? || f.association[:polymorphic] }.map do |field|
+        if field.association? && field.association[:polymorphic]
+          [field.method_name, model_config.abstract_model.properties.find {|p| field.association[:foreign_type] == p[:name] }[:name]]
         else
           field.name
         end

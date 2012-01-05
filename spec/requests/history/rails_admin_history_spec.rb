@@ -13,6 +13,16 @@ describe "RailsAdmin History" do
     end
   end
 
+context "when a range does not start in December" do
+  context "and the start month is greater than stop month" do
+      it "does not produce SQL with invalid count column name" do
+         RailsAdmin::History.should_receive(:find_by_sql).with(["select count(*) as record_count, year, month from rails_admin_histories where month IN (?) and year = ? group by year, month", [9, 10, 11, 12], 2011]).and_return([])
+         RailsAdmin::History.should_receive(:find_by_sql).with(["select count(*) as record_count, year, month from rails_admin_histories where month IN (?) and year = ? group by year, month", [1], 2012]).and_return([])
+         RailsAdmin::History.get_history_for_dates(8, 1, 2011, 2012)
+      end
+    end
+  end
+
   describe "when range starts in December" do
     it "does not produce SQL with empty IN () range" do
       RailsAdmin::History.should_receive(:find_by_sql).with(["select count(*) as record_count, year, month from rails_admin_histories where month IN (?) and year = ? group by year, month", [1, 2, 3, 4], 2011]).and_return([])
@@ -56,8 +66,7 @@ describe "RailsAdmin History" do
   end
 
   describe "model history fetch" do
-    before :all do
-      @default_items_per_page = RailsAdmin::Config::Sections::List.default_items_per_page
+    before :each do
       @model = RailsAdmin::AbstractModel.new("Player")
       player = FactoryGirl.create :player
       30.times do |i|
@@ -72,8 +81,8 @@ describe "RailsAdmin History" do
       histories[1].all.count.should == 20
     end
 
-    it "should respect RailsAdmin::Config::Sections::List.default_items_per_page" do
-      RailsAdmin::Config::Sections::List.default_items_per_page = 15
+    it "should respect RailsAdmin::Config.default_items_per_page" do
+      RailsAdmin.config.default_items_per_page = 15
       histories = RailsAdmin::AbstractHistory.history_for_model @model, nil, false, false, false, nil
       histories[0].should == 2
       histories[1].all.count.should == 15
@@ -93,7 +102,7 @@ describe "RailsAdmin History" do
       end
 
       context "with a lot of histories" do
-        before :all do
+        before :each do
           player = @model.create(:team_id => -1, :number => -1, :name => "Player 1")
           1000.times do |i|
             player.number = i
@@ -105,10 +114,6 @@ describe "RailsAdmin History" do
           xhr :get, rails_admin_history_model_path(@model, :page => 2)
         end
       end
-    end
-
-    after :all do
-      RailsAdmin::Config::Sections::List.default_items_per_page = @default_items_per_page
     end
   end
 

@@ -34,14 +34,14 @@
     _create: function() {
       this._cache = {};
       this._build();
-      this._bindEvents();
       this._buildCache();
+      this._bindEvents();
     },
 
     _build: function() {
       var i;
 
-      this.wrapper = $('<div class="ra-multiselect">');
+      this.wrapper = $('<div class="input ra-multiselect">');
 
       this.wrapper.insertAfter(this.element);
 
@@ -98,7 +98,7 @@
 
     _bindEvents: function() {
       var widget = this;
-
+            
       /* Add all to selection */
       this.addAll.click(function(e){
         widget._select($('option', widget.collection));
@@ -123,15 +123,15 @@
       if(this.options.sortable) {
         /* Move selection up */
         this.up.click(function(e){
-          widget._move('up', $(':selected', widget.selection));    
+          widget._move('up', $(':selected', widget.selection));
         });
-      
+
         /* Move selection down */
         this.down.click(function(e){
           widget._move('down', $(':selected', widget.selection));
         });
       }
-	
+
       /* Typing to the filter */
       this.filter.keyup(function(e){
 

@@ -35,6 +35,11 @@ module RailsAdmin
         self.class.register_instance_option(option_name, scope, &default)
       end
 
+      def register_deprecated_instance_option(option_name, replacement_option_name)
+        scope = class << self; self; end;
+        self.class.register_deprecated_instance_option(option_name, replacement_option_name, scope)
+      end
+
       def with(bindings = {})
         RailsAdmin::Config::Proxy.new(self, bindings)
       end
@@ -62,10 +67,10 @@ module RailsAdmin
         scope.send(:define_method, option_name) do |*args, &block|
           if !args[0].nil? || block
             # Invocation with args --> This is the declaration of the option, i.e. setter
-            instance_variable_set("@#{option_name}", args[0].nil? ? block : args[0])
+            instance_variable_set("@#{option_name}_registered", args[0].nil? ? block : args[0])
           else
             # Invocation without args nor block --> It's the use of the option, i.e. getter
-            value = instance_variable_get("@#{option_name}")
+            value = instance_variable_get("@#{option_name}_registered")
             case value
               when Proc
                 # Track recursive invocation with an instance variable. This prevents run-away recursion
@@ -84,6 +89,13 @@ module RailsAdmin
             end
             value
           end
+        end
+      end
+
+      def self.register_deprecated_instance_option(option_name, replacement_option_name, scope = self)
+        scope.send(:define_method, option_name) do |*args, &block|
+          ActiveSupport::Deprecation.warn("The #{option_name} configuration option is deprecated, please use #{replacement_option_name}.")
+          send(replacement_option_name, *args, &block)
         end
       end
 

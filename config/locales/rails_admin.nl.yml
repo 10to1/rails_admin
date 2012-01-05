@@ -2,7 +2,7 @@
 # Translated from the English locale by Luuk Hendriks (DRiKE on github), used the date and datetime
 # from https://github.com/svenfuchs/rails-i18n/blob/master/rails/locale/nl.yml
 # credits for those sections to Ariejan de Vroom and Floris Huetink
- 
+
 nl:
   home:
     name: "home"
@@ -54,6 +54,7 @@ nl:
       are_you_sure_you_want_to_delete_the_object: "Are you sure you want to delete the %{model_name}"
       confirmation: "Ja, ik weet het zeker"
       delete_confirmation: "Delete confirmation"
+      bulk_delete: "The following objects will be deleted, which may delete or orphan some of their related dependencies:"
     flash:
       successful: "%{name} succesvol %{action}"
       error: "%{name} onsuccesvol %{action}"
@@ -110,7 +111,7 @@ nl:
         other: "meer dan %{count} jaar"
       almost_x_years:
         one: "bijna \xC3\xA9\xC3\xA9n jaar"
-        other: "bijna %{count} jaar" 
+        other: "bijna %{count} jaar"
   date:
     formats:
       default: "%d/%m/%Y"
